@@ -1,0 +1,71 @@
+---
+- name: Docker Installation and Validation Playbook
+  hosts: localhost
+  gather_facts: yes
+  become: yes
+
+  tasks:
+
+    # === Pre-checks ===
+    - name: Print OS details
+      ansible.builtin.debug:
+        msg: "family: {{ ansible_facts['os_family'] }} distribution: {{ ansible_facts['distribution'] }}"
+
+    - name: Check current Docker version
+      command: docker --version
+      register: docker_version
+      ignore_errors: yes
+
+    - name: Print current Docker version
+      debug:
+        msg: "{{ docker_version.stdout | default('Docker not installed') }}"
+
+    - name: Trigger Docker installation if not present
+      ansible.builtin.debug:
+        msg: "Docker not installed, will run installation handler"
+      when: docker_version.rc != 0
+      notify: Install Docker on Ubuntu
+
+    # === Start Docker ===
+    - name: Check if Docker service is running
+      command: systemctl is-active docker
+      register: docker_service_status
+      ignore_errors: yes
+
+    - name: Trigger handler if Docker service is not running
+      ansible.builtin.debug:
+        msg: "Docker service not running, will start via handler"
+      when: docker_service_status.stdout != "active"
+      notify: Ensure Docker is running
+
+    # === Post-checks ===
+    - name: Validate Docker service is running
+      command: systemctl status docker
+      register: docker_status
+
+    - name: Print Docker service status
+      debug:
+        msg: "{{ docker_status.stdout }}"
+
+    - name: Print final Docker version
+      command: docker --version
+      register: final_docker_version
+
+    - name: Show Docker version output
+      debug:
+        msg: "{{ final_docker_version.stdout }}"
+
+  handlers:
+    - name: Install Docker on Ubuntu
+      shell: |
+        curl -fsSL https://get.docker.com -o install-docker.sh
+        sh install-docker.sh
+      args:
+        chdir: /tmp
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Ensure Docker is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
