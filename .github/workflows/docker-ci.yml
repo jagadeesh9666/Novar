@@ -27,7 +27,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: your-dockerhub-username/lab14-app
+          images: jagadeeshmurru/lab14-app
 
       # Step 4: Build and push image
       - name: Build and push Docker image
